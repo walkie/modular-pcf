@@ -1,0 +1,47 @@
+name:          modular-pcf
+version:       0.0.0
+synopsis:      Simply typed PCF with an ML-style module system.
+homepage:      http://github.com/walkie/modular-pcf
+license:       BSD3
+author:        Eric Walkingshaw
+maintainer:    walkiner@oregonstate.edu
+category:      Language
+build-type:    Simple
+cabal-version: >= 1.22
+
+source-repository head
+  type:     git
+  location: https://github.com/walkie/modular-pcf
+  branch:   master
+
+library
+  hs-source-dirs:   src
+  default-language: Haskell2010
+  ghc-options:      -W -Wredundant-constraints
+  default-extensions:
+      GeneralizedNewtypeDeriving
+    , OverloadedStrings
+  build-depends:
+      base
+    , containers
+  exposed-modules:
+      Language.ModPCF.Environment
+    , Language.ModPCF.Examples
+    , Language.ModPCF.Semantics
+    , Language.ModPCF.Syntax
+    , Language.ModPCF.TypeCheck
+
+test-suite test
+  hs-source-dirs:   test
+  default-language: Haskell2010
+  type:             exitcode-stdio-1.0
+  main-is:          Main.hs
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+  default-extensions:
+  build-depends:
+      modular-pcf
+    , base
+    , tasty
+    , tasty-hunit
+  other-modules:
+    Language.ModPCF.Test.Core
