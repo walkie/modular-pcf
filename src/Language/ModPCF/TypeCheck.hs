@@ -31,56 +31,59 @@ typeP2 Mul TInt  TInt  = Just TInt
 typeP2 LTE TInt  TInt  = Just TBool
 typeP2 _   _     _     = Nothing
 
--- | Typing relation for expressions.
-typeExpr :: SigEnv -> TypeEnv -> Expr -> Result Type
+-- | Typing relation for expressions. The typing context is a signature
+--   environment for resolving external references, and a signature that
+--   represents the local context for this expression.
+typeExpr :: SigEnv -> Signature -> Expr -> Result Type
 
 typeExpr _ _ (LitB _) = return TBool
 typeExpr _ _ (LitI _) = return TInt
 
-typeExpr senv tenv this@(P1 o e) = do
-    t <- typeExpr senv tenv e
+typeExpr ext sig this@(P1 o e) = do
+    t <- typeExpr ext sig e
     case typeP1 o t of
       Just t -> return t
       _ -> mismatch this [(e,t)]
 
-typeExpr senv tenv this@(P2 o l r) = do
-    lt <- typeExpr senv tenv l
-    rt <- typeExpr senv tenv r
+typeExpr ext sig this@(P2 o l r) = do
+    lt <- typeExpr ext sig l
+    rt <- typeExpr ext sig r
     case typeP2 o lt rt of
       Just t -> return t
       _ -> mismatch this [(l,lt),(r,rt)]
 
-typeExpr senv tenv this@(If c t e) = do
-    ct <- typeExpr senv tenv c
-    tt <- typeExpr senv tenv t
-    et <- typeExpr senv tenv e
+typeExpr ext sig this@(If c t e) = do
+    ct <- typeExpr ext sig c
+    tt <- typeExpr ext sig t
+    et <- typeExpr ext sig e
     case ct of
       TBool | tt == et -> return tt
       _ -> mismatch this [(c,ct),(t,tt),(e,et)]
 
-typeExpr senv tenv (Abs x t e) = do
-    res <- typeExpr senv (envAdd x t tenv) e
+typeExpr ext sig (Abs x t e) = do
+    t' <- expandType ext sig t
+    res <- typeExpr ext (sigAddVal x t' sig) e
     return (t :-> res)
 
-typeExpr senv tenv this@(App l r) = do
-    lt <- typeExpr senv tenv l
-    rt <- typeExpr senv tenv r
+typeExpr ext sig this@(App l r) = do
+    lt <- typeExpr ext sig l
+    rt <- typeExpr ext sig r
     case lt of
       arg :-> res | rt == arg -> return res
       _ -> mismatch this [(l,lt),(r,rt)]
 
-typeExpr senv tenv this@(Fix e) = do
-    t <- typeExpr senv tenv e
+typeExpr ext sig this@(Fix e) = do
+    t <- typeExpr ext sig e
     case t of
       arg :-> res | arg == res -> return res
       _ -> mismatch this [(e,t)]
 
-typeExpr _ tenv this@(Ref x)
-    | Just t <- envGet x tenv = return t
+typeExpr _ sig this@(Ref x)
+    | Just t <- sigGetVal x sig = return t
     | otherwise = noSuchVar this
 
-typeExpr senv _ this@(Ext m x)
-    | Just t <- envGet m senv >>= sigGetVal x = return t
+typeExpr ext _ this@(Ext m x)
+    | Just t <- envGet m ext >>= sigGetVal x = return t
     | otherwise = noSuchVar this
 
 
