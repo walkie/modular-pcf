@@ -9,6 +9,9 @@ import Language.ModPCF.TypeResult
 -- * Typing the core language
 --
 
+-- | The typing environment.
+type TypeEnv = Env Var Type
+
 -- | Type a primitive unary operation.
 typeP1 :: Op1 -> Type -> Maybe Type
 typeP1 Not TBool = Just TBool
@@ -25,7 +28,7 @@ typeP2 LTE TInt  TInt  = Just TBool
 typeP2 _   _     _     = Nothing
 
 -- | Typing relation for expressions.
-typeExpr :: Env Var Type -> Expr -> Result Type
+typeExpr :: TypeEnv -> Expr -> Result Type
 
 typeExpr _ (LitB _) = return TBool
 typeExpr _ (LitI _) = return TInt
@@ -74,6 +77,6 @@ typeExpr m this@(Ref x) = do
       _ -> notFound this
 
 -- typeExpr m this@(Ext q x) = do
---     case envExtGet q x m of
+--     case envGetExt q x m of
 --       Just t -> return t
 --       _ -> notFound this

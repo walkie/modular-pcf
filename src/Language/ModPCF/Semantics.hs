@@ -8,11 +8,14 @@ import Language.ModPCF.Syntax
 -- * Evaluation semantics of the core language
 --
 
+-- | The value environment.
+type ValueEnv = Env Var Value
+
 -- | Values are booleans, integers, and closures.
 data Value
    = B Bool
    | I Int
-   | Fun (Env Var Value) Var Expr
+   | Fun ValueEnv Var Expr
   deriving (Eq,Show)
 
 -- | Evaluate a primitive unary operation.
@@ -32,7 +35,7 @@ evalP2 o   l     r     = typeError "evalP2" [show o, show l, show r]
 
 -- | Valuation function for expressions. Fixpoints are evaluated by
 --   expanding to the untypeable Y-combinator, then evaluating.
-evalExpr :: Env Var Value -> Expr -> Value
+evalExpr :: ValueEnv -> Expr -> Value
 evalExpr _ (LitB b)    = B b
 evalExpr _ (LitI i)    = I i
 evalExpr m (P1 o e)    = evalP1 o (evalExpr m e)
@@ -45,7 +48,7 @@ evalExpr m (App l r)   | Fun m' x e <- evalExpr m l
 evalExpr m (Fix e)     = evalExpr m (App ycomb e)
 evalExpr m (Ref x)     | Just v <- envGet x m
                        = v
--- evalExpr m (Ext q x)   | Just v <- envExtGet q x m
+-- evalExpr m (Ext q x)   | Just v <- envGetExt q x m
 --                        = v
 evalExpr m e           = typeError "evalExpr" [show m, show e]
 
