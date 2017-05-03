@@ -127,16 +127,10 @@ app3 f a b c = App (App (App f a) b) c
 -- $ An ML-style module system for our core language.
 
 
--- ** Abstract syntax
+-- ** Top-level programs
 
 -- | A program is a sequence of top-level module and signature bindings.
 type Prog = [Top]
-
--- | A signature is a list of type and value declarations.
-type Signature = [Decl]
-
--- | A module is a list of type and value bindings.
-type Module = [Bind]
 
 -- | Top-level bindings of module and signature names.
 data Top
@@ -144,16 +138,22 @@ data Top
    | TSig SVar SExpr
   deriving (Eq,Show)
 
--- | Component declarations of a signature.
-data Decl
-   = DType TVar (Maybe Type)
-   | DVal Var Type
+
+-- ** Signatures
+
+-- | A signature is a list of type and value declarations.
+type Signature = [Decl]
+
+-- | A type declaration is either abstract or concrete.
+data TypeDecl
+   = Abstract
+   | Concrete Type
   deriving (Eq,Show)
 
--- | Component bindings of a module.
-data Bind
-   = BType TVar Type
-   | BVal Var Expr
+-- | Component type and value declarations of a signature.
+data Decl
+   = DType TVar TypeDecl
+   | DVal Var Type
   deriving (Eq,Show)
 
 -- | Signature expressions in top-level bindings.
@@ -162,8 +162,44 @@ data SExpr
    | Sig Signature  -- ^ new signature
   deriving (Eq,Show)
 
+-- | Get a type declaration from a signature.
+declaredType :: TVar -> Signature -> Maybe TypeDecl
+declaredType x (DType y t : ds) | x == y = Just t
+declaredType x (_:ds) = declaredType x ds
+declaredType x []     = Nothing
+
+-- | Get a value declaration from a signature.
+declaredVal :: Var -> Signature -> Maybe Type
+declaredVal x (DVal y t : ds) | x == y = Just t
+declaredVal x (_:ds) = declaredVal x ds
+declaredVal x []     = Nothing
+
+
+-- ** Modules
+
+-- | A module is a list of type and value bindings.
+type Module = [Bind]
+
+-- | Component type and value bindings of a module.
+data Bind
+   = BType TVar Type
+   | BVal Var Expr
+  deriving (Eq,Show)
+
 -- | Module expressions in top-level bindings.
 data MExpr
-   = MRef MVar      -- ^ module reference
-   | Mod Module     -- ^ new module
+   = MRef MVar   -- ^ module reference
+   | Mod Module  -- ^ new module
   deriving (Eq,Show)
+
+-- | Get a type binding from a module.
+boundType :: TVar -> Module -> Maybe Type
+boundType x (BType y t : bs) | x == y = Just t
+boundType x (_:bs) = boundType x bs
+boundType x []     = Nothing
+
+-- | Get a value binding from a module.
+boundVal :: Var -> Module -> Maybe Expr
+boundVal x (BVal y t : ds) | x == y = Just t
+boundVal x (_:ds) = boundVal x ds
+boundVal x []     = Nothing
