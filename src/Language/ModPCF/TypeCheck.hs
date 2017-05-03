@@ -1,6 +1,7 @@
 module Language.ModPCF.TypeCheck where
 
 import Language.ModPCF.Environment
+import Language.ModPCF.Signature
 import Language.ModPCF.Syntax
 import Language.ModPCF.TypeResult
 
@@ -74,9 +75,44 @@ typeExpr m this@(Fix e) = do
 typeExpr m this@(Ref x) = do
     case envGet x m of
       Just t -> return t
-      _ -> notFound this
+      _ -> noSuchVar this
 
 -- typeExpr m this@(Ext q x) = do
 --     case envGetExt q x m of
 --       Just t -> return t
 --       _ -> notFound this
+
+
+--
+-- * Typing the module system
+--
+
+-- | The signature environment associates signatures with module names.
+type SigEnv = Env MVar Signature
+
+-- | Load a declaration into a signature.
+loadDecl :: SigEnv -> Signature -> Decl -> Result Signature
+loadDecl _   sig this@(DType x Abstract)
+    | sigHasType x sig = duplicateTVar this
+    | otherwise = return (sigAddType x (TRef x) sig)
+loadDecl ext sig (DType x (Concrete t)) = do
+    t' <- expandType ext sig t
+    return (sigAddType x t' sig)
+loadDecl ext sig (DVal x t) = do
+    t' <- expandType ext sig t
+    return (sigAddVal x t' sig)
+
+-- | Expand all type synonyms in a type.
+expandType :: SigEnv -> Signature -> Type -> Result Type
+expandType _ _ TBool = return TBool
+expandType _ _ TInt  = return TInt
+expandType ext sig (arg :-> res) = do
+    arg' <- expandType ext sig arg
+    res' <- expandType ext sig res
+    return (arg' :-> res')
+expandType _ sig this@(TRef x)
+    | Just t <- sigGetType x sig = return t
+    | otherwise = noSuchTVar this
+expandType ext _ this@(TExt m x)
+    | Just t <- envGet m ext >>= sigGetType x = return t
+    | otherwise = noSuchTVar this

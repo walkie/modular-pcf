@@ -28,6 +28,7 @@ library
       Language.ModPCF.Environment
     , Language.ModPCF.Examples
     , Language.ModPCF.Semantics
+    , Language.ModPCF.Signature
     , Language.ModPCF.Syntax
     , Language.ModPCF.TypeCheck
     , Language.ModPCF.TypeResult
