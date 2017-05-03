@@ -13,6 +13,9 @@ import Language.ModPCF.TypeResult
 -- | The typing environment.
 type TypeEnv = Env Var Type
 
+-- | The signature environment associates module names with signatures.
+type SigEnv = Env MVar Signature
+
 -- | Type a primitive unary operation.
 typeP1 :: Op1 -> Type -> Maybe Type
 typeP1 Not TBool = Just TBool
@@ -29,66 +32,61 @@ typeP2 LTE TInt  TInt  = Just TBool
 typeP2 _   _     _     = Nothing
 
 -- | Typing relation for expressions.
-typeExpr :: TypeEnv -> Expr -> Result Type
+typeExpr :: SigEnv -> TypeEnv -> Expr -> Result Type
 
-typeExpr _ (LitB _) = return TBool
-typeExpr _ (LitI _) = return TInt
+typeExpr _ _ (LitB _) = return TBool
+typeExpr _ _ (LitI _) = return TInt
 
-typeExpr m this@(P1 o e) = do
-    t <- typeExpr m e
+typeExpr senv tenv this@(P1 o e) = do
+    t <- typeExpr senv tenv e
     case typeP1 o t of
       Just t -> return t
       _ -> mismatch this [(e,t)]
 
-typeExpr m this@(P2 o l r) = do
-    lt <- typeExpr m l
-    rt <- typeExpr m r
+typeExpr senv tenv this@(P2 o l r) = do
+    lt <- typeExpr senv tenv l
+    rt <- typeExpr senv tenv r
     case typeP2 o lt rt of
       Just t -> return t
       _ -> mismatch this [(l,lt),(r,rt)]
 
-typeExpr m this@(If c t e) = do
-    ct <- typeExpr m c
-    tt <- typeExpr m t
-    et <- typeExpr m e
+typeExpr senv tenv this@(If c t e) = do
+    ct <- typeExpr senv tenv c
+    tt <- typeExpr senv tenv t
+    et <- typeExpr senv tenv e
     case ct of
       TBool | tt == et -> return tt
       _ -> mismatch this [(c,ct),(t,tt),(e,et)]
 
-typeExpr m (Abs x t e) = do
-    res <- typeExpr (envAdd x t m) e
+typeExpr senv tenv (Abs x t e) = do
+    res <- typeExpr senv (envAdd x t tenv) e
     return (t :-> res)
 
-typeExpr m this@(App l r) = do
-    lt <- typeExpr m l
-    rt <- typeExpr m r
+typeExpr senv tenv this@(App l r) = do
+    lt <- typeExpr senv tenv l
+    rt <- typeExpr senv tenv r
     case lt of
       arg :-> res | rt == arg -> return res
       _ -> mismatch this [(l,lt),(r,rt)]
 
-typeExpr m this@(Fix e) = do
-    t <- typeExpr m e
+typeExpr senv tenv this@(Fix e) = do
+    t <- typeExpr senv tenv e
     case t of
       arg :-> res | arg == res -> return res
       _ -> mismatch this [(e,t)]
 
-typeExpr m this@(Ref x) = do
-    case envGet x m of
-      Just t -> return t
-      _ -> noSuchVar this
+typeExpr _ tenv this@(Ref x)
+    | Just t <- envGet x tenv = return t
+    | otherwise = noSuchVar this
 
--- typeExpr m this@(Ext q x) = do
---     case envGetExt q x m of
---       Just t -> return t
---       _ -> notFound this
+typeExpr senv _ this@(Ext m x)
+    | Just t <- envGet m senv >>= sigGetVal x = return t
+    | otherwise = noSuchVar this
 
 
 --
 -- * Typing the module system
 --
-
--- | The signature environment associates signatures with module names.
-type SigEnv = Env MVar Signature
 
 -- | Load a declaration into a signature.
 loadDecl :: SigEnv -> Signature -> Decl -> Result Signature

@@ -23,11 +23,13 @@ equal_5_3 = app2 intEqual (LitI 5) (LitI 3)
 equal_3_3 = app2 intEqual (LitI 3) (LitI 3)
 equal_3_true = app2 intEqual (LitI 3) (LitB True)
 
+typeSimple = typeExpr envEmpty envEmpty
+
 typeEqual =
-  [ testCase "typeEqual 1" (Right TBool @=? typeExpr envEmpty equal_3_5)
-  , testCase "typeEqual 2" (Right TBool @=? typeExpr envEmpty equal_5_3)
-  , testCase "typeEqual 3" (Right TBool @=? typeExpr envEmpty equal_3_3)
-  , testCase "typeEqual 4" (assertBool "" (isMismatch (typeExpr envEmpty equal_3_true)))
+  [ testCase "typeEqual 1" (Right TBool @=? typeSimple equal_3_5)
+  , testCase "typeEqual 2" (Right TBool @=? typeSimple equal_5_3)
+  , testCase "typeEqual 3" (Right TBool @=? typeSimple equal_3_3)
+  , testCase "typeEqual 4" (assertBool "" (isMismatch (typeSimple equal_3_true)))
   ]
 
 evalEqual =
@@ -37,7 +39,7 @@ evalEqual =
   ]
 
 typeFact =
-  [ testCase "typeFact" (Right (TInt :-> TInt) @=? typeExpr envEmpty factorial)
+  [ testCase "typeFact" (Right (TInt :-> TInt) @=? typeSimple factorial)
   ]
 
 evalFact =
