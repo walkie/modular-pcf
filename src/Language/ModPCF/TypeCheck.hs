@@ -2,57 +2,12 @@ module Language.ModPCF.TypeCheck where
 
 import Language.ModPCF.Environment
 import Language.ModPCF.Syntax
+import Language.ModPCF.TypeResult
 
 
 --
 -- * Typing the core language
 --
-
--- ** Typing results
-
--- | A type result is either a type error or a type.
-type TypeResult = Either TypeError Type
-
--- | Captures the location and cause of a static type error.
-data TypeError = TypeError Expr Cause
-  deriving (Eq,Show)
-
--- | Causes of static type errors.
-data Cause
-   = Mismatch [(Expr,Type)]
-   | NotFound
-  deriving (Eq,Show)
-
--- | Was typing successful?
-isSuccess :: TypeResult -> Bool
-isSuccess (Right _) = True
-isSuccess _ = False
-
--- | Was there a type error?
-isTypeError :: TypeResult -> Bool
-isTypeError (Left _) = True
-isTypeError _ = False
-
--- | Was there a type mismatch?
-isMismatch :: TypeResult -> Bool
-isMismatch (Left (TypeError _ (Mismatch _))) = True
-isMismatch _ = False
-
--- | Was there an unbound variable error?
-isNotFound :: TypeResult -> Bool
-isNotFound (Left (TypeError _ NotFound)) = True
-isNotFound _ = False
-
--- | Throw a type mismatch error.
-mismatch :: Expr -> [(Expr,Type)] -> TypeResult
-mismatch loc parts = Left (TypeError loc (Mismatch parts))
-
--- | Throw an unbound variable error.
-notFound :: Expr -> TypeResult
-notFound loc = Left (TypeError loc NotFound)
-
-
--- ** Typing relation
 
 -- | Type a primitive unary operation.
 typeP1 :: Op1 -> Type -> Maybe Type
@@ -70,7 +25,7 @@ typeP2 LTE TInt  TInt  = Just TBool
 typeP2 _   _     _     = Nothing
 
 -- | Typing relation for expressions.
-typeExpr :: Env Var Type -> Expr -> TypeResult
+typeExpr :: Env Var Type -> Expr -> Result Type
 
 typeExpr _ (LitB _) = return TBool
 typeExpr _ (LitI _) = return TInt

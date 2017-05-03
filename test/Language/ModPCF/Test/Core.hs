@@ -8,6 +8,7 @@ import Language.ModPCF.Examples
 import Language.ModPCF.Semantics
 import Language.ModPCF.Syntax
 import Language.ModPCF.TypeCheck
+import Language.ModPCF.TypeResult
 
 
 tests = testGroup "Core language tests" $ concat

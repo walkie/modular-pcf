@@ -30,6 +30,7 @@ library
     , Language.ModPCF.Semantics
     , Language.ModPCF.Syntax
     , Language.ModPCF.TypeCheck
+    , Language.ModPCF.TypeResult
 
 test-suite test
   hs-source-dirs:   test
