@@ -177,6 +177,8 @@ typeTop ext (TSig s e) = do
     sig <- typeSExpr ext e
     return (extAddSig s sig ext)
 
--- | Type check a program, producign the resulting signature environment.
-typeProg :: Prog -> Result SigEnv
-typeProg = foldM typeTop envEmpty
+-- | Type check a program, producing the type of the main function.
+typeProg :: Prog -> Result Type
+typeProg (Prog ds e) = do
+    ext <- foldM typeTop envEmpty ds
+    typeExpr ext envEmpty e

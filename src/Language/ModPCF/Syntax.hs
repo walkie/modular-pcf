@@ -129,8 +129,10 @@ app3 f a b c = App (App (App f a) b) c
 
 -- ** Top-level programs
 
--- | A program is a sequence of top-level module and signature bindings.
-type Prog = [Top]
+-- | A program is a sequence of top-level module and signature bindings,
+--   plus an expression that represents the entry point (i.e. "main").
+data Prog = Prog [Top] Expr
+  deriving (Eq,Show)
 
 -- | Top-level bindings of module and signature names.
 data Top
