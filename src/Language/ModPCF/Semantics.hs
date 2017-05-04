@@ -42,6 +42,7 @@ evalExpr m (P1 o e)    = evalP1 o (evalExpr m e)
 evalExpr m (P2 o l r)  = evalP2 o (evalExpr m l) (evalExpr m r)
 evalExpr m (If c t e)  | B b <- evalExpr m c
                        = evalExpr m (if b then t else e)
+evalExpr m (Let x l r) = evalExpr (envAdd x (evalExpr m l) m) r
 evalExpr m (Abs x _ e) = Fun m x e
 evalExpr m (App l r)   | Fun m' x e <- evalExpr m l
                        = evalExpr (envAdd x (evalExpr m r) m') e
@@ -88,7 +89,8 @@ loadBind ext mod (BVal v e)  = envAdd v (linkExpr ext mod e) mod
 -- | Link an expression by patching in the expressions bound by value bindings
 --   in modules. The module environment is used to patch external references.
 --   Local references may be patched using bindings in the local module.
---   Note that abstractions can shadow bindings in the local module.
+--   Note that abstractions and let-expressions can shadow bindings in the
+--   local module.
 linkExpr :: ModEnv -> Module -> Expr -> Expr
 linkExpr ext mod this = case this of
     LitB b    -> LitB b
@@ -96,6 +98,7 @@ linkExpr ext mod this = case this of
     P1 o e    -> P1 o (link e)
     P2 o l r  -> P2 o (link l) (link r)
     If c t e  -> If (link c) (link t) (link e)
+    Let x l r -> Let x (link l) (linkExpr ext (envDel x mod) r)
     Abs x t e -> Abs x t (linkExpr ext (envDel x mod) e)
     App l r   -> App (link l) (link r)
     Fix e     -> Fix (link e)

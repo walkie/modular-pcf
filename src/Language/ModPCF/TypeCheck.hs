@@ -75,6 +75,11 @@ typeExpr ext sig this@(If c t e) = do
       TBool | tt == et -> return tt
       _ -> mismatch this [(c,ct),(t,tt),(e,et)]
 
+typeExpr ext sig (Let x l r) = do
+    lt <- typeExpr ext sig l
+    rt <- typeExpr ext (sigAddVal x lt sig) r
+    return rt
+
 typeExpr ext sig (Abs x t e) = do
     t' <- expandType ext sig t
     res <- typeExpr ext (sigAddVal x t' sig) e

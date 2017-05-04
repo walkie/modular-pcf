@@ -78,6 +78,7 @@ data Expr
    | P1   Op1  Expr       -- ^ primitive unary operation
    | P2   Op2  Expr Expr  -- ^ primitive binary operation
    | If   Expr Expr Expr  -- ^ conditional expression
+   | Let  Var  Expr Expr  -- ^ local variables
    | Abs  Var  Type Expr  -- ^ abstraction
    | App  Expr Expr       -- ^ application
    | Fix  Expr            -- ^ fixpoint operation
