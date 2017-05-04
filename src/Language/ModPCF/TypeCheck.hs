@@ -179,6 +179,6 @@ typeTop ext (TSig s e) = do
 
 -- | Type check a program, producing the type of the main function.
 typeProg :: Prog -> Result Type
-typeProg (Prog ds e) = do
-    ext <- foldM typeTop envEmpty ds
+typeProg (Prog bs e) = do
+    ext <- foldM typeTop envEmpty bs
     typeExpr ext envEmpty e

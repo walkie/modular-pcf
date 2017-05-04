@@ -48,8 +48,6 @@ evalExpr m (App l r)   | Fun m' x e <- evalExpr m l
 evalExpr m (Fix e)     = evalExpr m (App ycomb e)
 evalExpr m (Ref x)     | Just v <- envGet x m
                        = v
--- evalExpr m (Ext q x)   | Just v <- envGetExt q x m
---                        = v
 evalExpr m e           = typeError "evalExpr" [show m, show e]
 
 -- | The Y fixpoint combinator. This function is untypeable in simply typed
@@ -64,6 +62,74 @@ ycomb = Abs "f" TBool (App term term)
 typeError :: String -> [String] -> a
 typeError fun args = error
    $ "Dynamic type error!" 
+  ++ "  evaluating: " ++ fun
+  ++ "  with args:  " ++ show args
+  ++ "Did you statically type check and link the expression first?"
+  ++ "  if yes: there's a bug in the type system and/or linker!"
+  ++ "  if no: well, that's your fault!"
+
+
+--
+-- * Linking
+--
+
+-- | At link time, a module is just its bare value bindings, that is a
+--   mapping from variables to the expressions they're bound to.
+type Module = Env Var Expr
+
+-- | The external environment maps module names to modules.
+type ModEnv = Env MVar Module
+
+-- | Load a binding into a module.
+loadBind :: ModEnv -> Module -> Bind -> Module
+loadBind _   mod (BType _ _) = mod
+loadBind ext mod (BVal v e)  = envAdd v (linkExpr ext mod e) mod
+
+-- | Link an expression by patching in the expressions bound by value bindings
+--   in modules. The module environment is used to patch external references.
+--   Local references may be patched using bindings in the local module.
+--   Note that abstractions can shadow bindings in the local module.
+linkExpr :: ModEnv -> Module -> Expr -> Expr
+linkExpr ext mod this = case this of
+    LitB b    -> LitB b
+    LitI i    -> LitI i
+    P1 o e    -> P1 o (link e)
+    P2 o l r  -> P2 o (link l) (link r)
+    If c t e  -> If (link c) (link t) (link e)
+    Abs x t e -> Abs x t (linkExpr ext (envDel x mod) e)
+    App l r   -> App (link l) (link r)
+    Fix e     -> Fix (link e)
+    Ref x     -> maybe err id (envGet x mod)
+    Ext q x   -> maybe err id (envGet q ext >>= \m -> envGet x m)
+  where
+    link = linkExpr ext mod
+    err  = linkError "linkExpr" [show ext, show mod, show this]
+
+-- | Link a module expression by linking all of its component expressions and
+--   generating a corresponding module.
+linkMExpr :: ModEnv -> MExpr -> Module
+linkMExpr ext (Mod bs) = foldl (loadBind ext) envEmpty bs
+linkMExpr ext (MRef m)
+    | Just mod <- envGet m ext = mod
+    | otherwise = linkError "linkMExpr" [show ext, show (MRef m)]
+
+-- | Link a top-level binding. For modules add a corresponding entry to the
+--   module environment. Ignore signatures, which are only relevant during
+--   type checking.
+linkTop :: ModEnv -> Top -> ModEnv
+linkTop ext (TMod m _ e) = envAdd m (linkMExpr ext e) ext
+linkTop ext (TSig _ _)   = ext
+
+-- | Link a program into a single core language expression. The resulting
+--   expression will not contain external references and can be evaluated
+--   with an empty environment.
+linkProg :: Prog -> Expr
+linkProg (Prog bs e) = linkExpr (foldl linkTop envEmpty bs) envEmpty e
+
+-- | Throw a dynamic linker error.
+linkError :: String -> [String] -> a
+linkError fun args = error
+   $ "Linker error!"
   ++ "  evaluating: " ++ fun
   ++ "  with args:  " ++ show args
   ++ "Did you statically type check the expression first?"

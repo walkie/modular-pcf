@@ -27,6 +27,10 @@ envGet = M.lookup
 envHas :: Ord var => var -> Env var a -> Bool
 envHas = M.member
 
+-- | Remove a binding from the environment.
+envDel :: Ord var => var -> Env var a -> Env var a
+envDel = M.delete
+
 -- | Get the bindings in an environment as a list.
 envList :: Env var a -> [(var,a)]
 envList = M.toList
