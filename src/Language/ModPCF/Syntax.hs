@@ -18,19 +18,19 @@ import Data.String (IsString)
 type Name = String
 
 -- | (Expression) variable names.
-newtype Var = Var { varName :: Name }
+newtype Var = Var Name
   deriving (Eq,Ord,Show,IsString)
 
 -- | Type variable names.
-newtype TVar = TVar { tvarName :: Name }
+newtype TVar = TVar Name
   deriving (Eq,Ord,Show,IsString)
 
 -- | Signature name.
-newtype SVar = SVar { svarName :: Name }
+newtype SVar = SVar Name
   deriving (Eq,Ord,Show,IsString)
 
 -- | Module name.
-newtype MVar = MVar { mvarName :: Name }
+newtype MVar = MVar Name
   deriving (Eq,Ord,Show,IsString)
 
 
