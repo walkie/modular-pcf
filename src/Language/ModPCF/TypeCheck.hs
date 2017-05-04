@@ -155,3 +155,22 @@ typeSExpr ext this@(SRef s)
     | Just sig <- extGetSig s ext = return sig
     | otherwise = notFound (InSig this)
 typeSExpr ext (Sig ds) = foldM (loadDecl ext) envEmpty ds
+
+-- | Type a top-level binding and add a corresponding entry to the signature
+--   environment.
+typeTop :: SigEnv -> Top -> Result SigEnv
+typeTop ext (TMod m Nothing e) = do
+    sig <- typeMExpr ext e
+    return (extAddMod m sig ext)
+typeTop ext (TMod m (Just se) me) = do
+    sig <- typeMExpr ext me
+    seal <- typeSExpr ext se
+    -- check whether sig matches seal
+    return (extAddMod m seal ext)
+typeTop ext (TSig s e) = do
+    sig <- typeSExpr ext e
+    return (extAddSig s sig ext)
+
+-- | Type check a program, producign the resulting signature environment.
+typeProg :: Prog -> Result SigEnv
+typeProg = foldM typeTop envEmpty
