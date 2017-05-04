@@ -46,4 +46,5 @@ test-suite test
     , tasty
     , tasty-hunit
   other-modules:
-    Language.ModPCF.Test.Core
+      Language.ModPCF.Test.Core
+    , Language.ModPCF.Test.EndToEnd

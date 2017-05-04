@@ -30,7 +30,7 @@ factorial
 
 
 --
--- * Module examples
+-- * Signature and module examples
 --
 
 -- | A module with functions for working with integers.
@@ -62,8 +62,15 @@ intMod = Mod
          (Ref "x")
   ]
 
--- | A module with functions for working with pairs of integers.
---   Implementation is based on Church encodings.
+-- | A signature defining an abstract data type for pairs of integers.
+pairSig = Sig
+   [ DType "Pair" Abstract
+   , DVal "pair" (TInt :-> TInt :-> TRef "Pair")
+   , DVal "fst"  (TRef "Pair" :-> TInt)
+   , DVal "snd"  (TRef "Pair" :-> TInt)
+   ]
+
+-- | An implementation of the integer pair ADT based on Church encodings.
 pairMod = Mod
   -- type
   [ BType "Pair" ((TInt :-> TInt :-> TInt) :-> TInt)
@@ -75,8 +82,52 @@ pairMod = Mod
   -- destructors
   , BVal "fst"
     $ Abs "p" (TRef "Pair")
-    $ App (abs2 (int "x") (int "y") (Ref "x")) (Ref "p")
+    $ App (Ref "p") (abs2 (int "x") (int "y") (Ref "x"))
   , BVal "snd"
     $ Abs "p" (TRef "Pair")
-    $ App (abs2 (int "x") (int "y") (Ref "x")) (Ref "p")
+    $ App (Ref "p") (abs2 (int "x") (int "y") (Ref "y"))
   ]
+
+-- | A signature that declares a greatest common divisor function. Assumes
+--   that an implementation of the Pair signature is in scope as P.
+gcdSig = Sig [ DVal "gcd" (TExt "P" "Pair" :-> TInt) ]
+
+-- | A module that implements gcd using Euclid's algorithm, assumes that a
+--   Pair and Int module are in scope as P and I.
+--   @
+--   fix(λf.λp. let a = fst p in
+--              let b = snd p in
+--              if a == b then p
+--              else f (if a ≤ b then (a,b-a) else (a-b,b))
+--   @
+euclidMod = Mod
+  [ BVal "euclid"
+    $ Fix $ Abs "f" (TExt "P" "Pair" :-> TExt "P" "Pair")
+    $ Abs "p" (TExt "P" "Pair")
+    $ Let "a" (App (Ext "P" "fst") (Ref "p"))
+    $ Let "b" (App (Ext "P" "snd") (Ref "p"))
+    $ If (app2 (Ext "I" "equal") (Ref "a") (Ref "b"))
+         (Ref "p")
+         (App (Ref "f")
+              (If (P2 LTE (Ref "a") (Ref "b"))
+                  (app2 (Ext "P" "pair")
+                        (Ref "a")
+                        (app2 (Ext "I" "minus") (Ref "b") (Ref "a")))
+                  (app2 (Ext "P" "pair")
+                        (app2 (Ext "I" "minus") (Ref "a") (Ref "b"))
+                        (Ref "b"))))
+  , BVal "gcd"
+    $ Abs "p" (TExt "P" "Pair")
+    $ App (Ext "P" "fst") (App (Ref "euclid") (Ref "p"))
+  ]
+
+-- | Putting it all together.
+gcdProg :: Prog
+gcdProg = Prog
+  [ TMod "I" Nothing intMod
+  , TSig "PAIR" pairSig
+  , TMod "P" (Just (SRef "PAIR")) pairMod
+  , TSig "GCD" gcdSig
+  , TMod "G" (Just (SRef "GCD")) euclidMod
+  ]
+  $ App (Ext "G" "gcd") (app2 (Ext "P" "pair") (LitI 1071) (LitI 462))
