@@ -99,7 +99,7 @@ linkExpr ext mod this = case this of
     Abs x t e -> Abs x t (linkExpr ext (envDel x mod) e)
     App l r   -> App (link l) (link r)
     Fix e     -> Fix (link e)
-    Ref x     -> maybe err id (envGet x mod)
+    Ref x     -> maybe (Ref x) id (envGet x mod)
     Ext q x   -> maybe err id (envGet q ext >>= \m -> envGet x m)
   where
     link = linkExpr ext mod
