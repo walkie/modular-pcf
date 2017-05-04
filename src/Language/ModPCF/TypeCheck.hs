@@ -10,10 +10,8 @@ import Language.ModPCF.TypeResult
 -- * Typing the core language
 --
 
--- | The typing environment.
-type TypeEnv = Env Var Type
-
--- | The signature environment associates module names with signatures.
+-- | The signature environment facilitates external references by binding
+--   module names to signatures.
 type SigEnv = Env MVar Signature
 
 -- | Type a primitive unary operation.
@@ -80,28 +78,16 @@ typeExpr ext sig this@(Fix e) = do
 
 typeExpr _ sig this@(Ref x)
     | Just t <- sigGetVal x sig = return t
-    | otherwise = noSuchVar this
+    | otherwise = notFound (InExpr this)
 
 typeExpr ext _ this@(Ext m x)
     | Just t <- envGet m ext >>= sigGetVal x = return t
-    | otherwise = noSuchVar this
+    | otherwise = notFound (InExpr this)
 
 
 --
 -- * Typing the module system
 --
-
--- | Load a declaration into a signature.
-loadDecl :: SigEnv -> Signature -> Decl -> Result Signature
-loadDecl _   sig this@(DType x Abstract)
-    | sigHasType x sig = duplicateTVar this
-    | otherwise = return (sigAddType x (TRef x) sig)
-loadDecl ext sig (DType x (Concrete t)) = do
-    t' <- expandType ext sig t
-    return (sigAddType x t' sig)
-loadDecl ext sig (DVal x t) = do
-    t' <- expandType ext sig t
-    return (sigAddVal x t' sig)
 
 -- | Expand all type synonyms in a type.
 expandType :: SigEnv -> Signature -> Type -> Result Type
@@ -113,7 +99,19 @@ expandType ext sig (arg :-> res) = do
     return (arg' :-> res')
 expandType _ sig this@(TRef x)
     | Just t <- sigGetType x sig = return t
-    | otherwise = noSuchTVar this
+    | otherwise = notFound (InType this)
 expandType ext _ this@(TExt m x)
     | Just t <- envGet m ext >>= sigGetType x = return t
-    | otherwise = noSuchTVar this
+    | otherwise = notFound (InType this)
+
+-- | Load a declaration into a signature.
+loadDecl :: SigEnv -> Signature -> Decl -> Result Signature
+loadDecl _   sig this@(DType x Abstract)
+    | sigHasType x sig = duplicate (InDecl this)
+    | otherwise = return (sigAddType x (TRef x) sig)
+loadDecl ext sig (DType x (Concrete t)) = do
+    t' <- expandType ext sig t
+    return (sigAddType x t' sig)
+loadDecl ext sig (DVal x t) = do
+    t' <- expandType ext sig t
+    return (sigAddVal x t' sig)
