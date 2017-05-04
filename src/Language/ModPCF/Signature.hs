@@ -40,6 +40,12 @@ sigGetType = envGet . Right
 sigHasType :: TVar -> Signature -> Bool
 sigHasType = envHas . Right
 
+sigVals :: Signature -> [(Var,Type)]
+sigVals sig = [(v,t) | (Left v, t) <- envList sig]
+
+sigTypes :: Signature -> [(TVar,Type)]
+sigTypes sig = [(v,t) | (Right v, t) <- envList sig]
+
 
 --
 -- * Signature environments

@@ -26,3 +26,7 @@ envGet = M.lookup
 -- | Check whether a binding is in the environment.
 envHas :: Ord var => var -> Env var a -> Bool
 envHas = M.member
+
+-- | Get the bindings in an environment as a list.
+envList :: Env var a -> [(var,a)]
+envList = M.toList

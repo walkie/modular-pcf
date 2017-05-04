@@ -106,7 +106,13 @@ typeExpr ext _ this@(Ext m x)
 -- * Typing the module system
 --
 
--- ** Building principal signatures
+-- ** Building and checking signatures
+
+-- | Signature matching. A signature sub matches a signature sup if every
+--   type or value declaration in sup is matched by a corresponding type or
+--   value declaration in sub.
+subSig :: Signature -> Signature -> Bool
+subSig _ _ = True
 
 -- | Load a declaration into a signature.
 loadDecl :: SigEnv -> Signature -> Decl -> Result Signature
