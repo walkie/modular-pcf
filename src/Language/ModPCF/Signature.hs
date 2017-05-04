@@ -39,3 +39,37 @@ sigGetType = envGet . Right
 -- | Check for the existence of a type declaration in a signature.
 sigHasType :: TVar -> Signature -> Bool
 sigHasType = envHas . Right
+
+
+--
+-- * Signature environments
+--
+
+-- | The signature environment facilitates external references by binding
+--   signature names to signatures, and binding module names to the
+--   signatures that represent the "type" of the corresponding module.
+type SigEnv = Env (Either SVar MVar) Signature
+
+-- | Bind a signature name to a signature.
+extAddSig :: SVar -> Signature -> SigEnv -> SigEnv
+extAddSig = envAdd . Left
+
+-- | Lookup the signature associated with a signature name.
+extGetSig :: SVar -> SigEnv -> Maybe Signature
+extGetSig = envGet . Left
+
+-- | Check whether a signature name is bound in the environment.
+extHasSig :: SVar -> SigEnv -> Bool
+extHasSig = envHas . Left
+
+-- | Bind a module name to a signature.
+extAddMod :: MVar -> Signature -> SigEnv -> SigEnv
+extAddMod = envAdd . Right
+
+-- | Lookup the signature associated with a module name.
+extGetMod :: MVar -> SigEnv -> Maybe Signature
+extGetMod = envGet . Right
+
+-- | Check whether a module name is bound in the environment.
+extHasMod :: MVar -> SigEnv -> Bool
+extHasMod = envHas . Right

@@ -1,5 +1,7 @@
 module Language.ModPCF.TypeCheck where
 
+import Control.Monad (foldM)
+
 import Language.ModPCF.Environment
 import Language.ModPCF.Signature
 import Language.ModPCF.Syntax
@@ -10,9 +12,24 @@ import Language.ModPCF.TypeResult
 -- * Typing the core language
 --
 
--- | The signature environment facilitates external references by binding
---   module names to signatures.
-type SigEnv = Env MVar Signature
+-- | Expand a type to remove type synonyms. After expansion only remaining
+--   type variables correspond to abstract types. The range of a signature
+--   signature contain only expanded types. During expansion, a signature
+--   environment is used to resolve external references, and the current
+--   signature is used to resolve local references.
+expandType :: SigEnv -> Signature -> Type -> Result Type
+expandType _ _ TBool = return TBool
+expandType _ _ TInt  = return TInt
+expandType ext sig (arg :-> res) = do
+    arg' <- expandType ext sig arg
+    res' <- expandType ext sig res
+    return (arg' :-> res')
+expandType _ sig this@(TRef x)
+    | Just t <- sigGetType x sig = return t
+    | otherwise = notFound (InType this)
+expandType ext _ this@(TExt m x)
+    | Just t <- extGetMod m ext >>= sigGetType x = return t
+    | otherwise = notFound (InType this)
 
 -- | Type a primitive unary operation.
 typeP1 :: Op1 -> Type -> Maybe Type
@@ -81,7 +98,7 @@ typeExpr _ sig this@(Ref x)
     | otherwise = notFound (InExpr this)
 
 typeExpr ext _ this@(Ext m x)
-    | Just t <- envGet m ext >>= sigGetVal x = return t
+    | Just t <- extGetMod m ext >>= sigGetVal x = return t
     | otherwise = notFound (InExpr this)
 
 
@@ -89,20 +106,7 @@ typeExpr ext _ this@(Ext m x)
 -- * Typing the module system
 --
 
--- | Expand all type synonyms in a type.
-expandType :: SigEnv -> Signature -> Type -> Result Type
-expandType _ _ TBool = return TBool
-expandType _ _ TInt  = return TInt
-expandType ext sig (arg :-> res) = do
-    arg' <- expandType ext sig arg
-    res' <- expandType ext sig res
-    return (arg' :-> res')
-expandType _ sig this@(TRef x)
-    | Just t <- sigGetType x sig = return t
-    | otherwise = notFound (InType this)
-expandType ext _ this@(TExt m x)
-    | Just t <- envGet m ext >>= sigGetType x = return t
-    | otherwise = notFound (InType this)
+-- ** Building principal signatures
 
 -- | Load a declaration into a signature.
 loadDecl :: SigEnv -> Signature -> Decl -> Result Signature
@@ -115,3 +119,39 @@ loadDecl ext sig (DType x (Concrete t)) = do
 loadDecl ext sig (DVal x t) = do
     t' <- expandType ext sig t
     return (sigAddVal x t' sig)
+
+-- | For a component binding in a module, produce the corresponding
+--   declaration in the principal signature.
+principalDecl :: SigEnv -> Signature -> Bind -> Result Decl
+principalDecl ext sig (BType x t) = do
+    t' <- expandType ext sig t
+    return (DType x (Concrete t'))
+principalDecl ext sig (BVal x e) = do
+    t <- typeExpr ext sig e
+    t' <- expandType ext sig t
+    return (DVal x t')
+
+-- | Build a principal signature from a list of bindings.
+principalSig :: SigEnv -> Signature -> [Bind] -> Result Signature
+principalSig _   sig []     = return sig
+principalSig ext sig (b:bs) = do
+    decl <- principalDecl ext sig b
+    sig' <- loadDecl ext sig decl
+    principalSig ext sig' bs
+
+
+-- ** Typing relation
+
+-- | Get the signature for a module expression.
+typeMExpr :: SigEnv -> MExpr -> Result Signature
+typeMExpr ext this@(MRef m)
+    | Just sig <- extGetMod m ext = return sig
+    | otherwise = notFound (InMod this)
+typeMExpr ext (Mod bs) = principalSig ext envEmpty bs
+
+-- | Get the signature for a signature expression.
+typeSExpr :: SigEnv -> SExpr -> Result Signature
+typeSExpr ext this@(SRef s)
+    | Just sig <- extGetSig s ext = return sig
+    | otherwise = notFound (InSig this)
+typeSExpr ext (Sig ds) = foldM (loadDecl ext) envEmpty ds
