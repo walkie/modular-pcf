@@ -28,8 +28,15 @@ expandType _ sig this@(TRef x)
     | Just t <- sigGetType x sig = return t
     | otherwise = notFound (InType this)
 expandType ext _ this@(TExt m x)
-    | Just t <- extGetMod m ext >>= sigGetType x = return t
+    | Just t <- extGetMod m ext >>= sigGetType x = return (externalizeType m t)
     | otherwise = notFound (InType this)
+
+-- | Make local type references external by qualifying them with the given
+--   module variable.
+externalizeType :: MVar -> Type -> Type
+externalizeType m (TRef x)      = TExt m x
+externalizeType m (arg :-> res) = externalizeType m arg :-> externalizeType m res
+externalizeType _ t             = t
 
 -- | Type a primitive unary operation.
 typeP1 :: Op1 -> Type -> Maybe Type
@@ -103,7 +110,7 @@ typeExpr _ sig this@(Ref x)
     | otherwise = notFound (InExpr this)
 
 typeExpr ext _ this@(Ext m x)
-    | Just t <- extGetMod m ext >>= sigGetVal x = return t
+    | Just t <- extGetMod m ext >>= sigGetVal x = return (externalizeType m t)
     | otherwise = notFound (InExpr this)
 
 
