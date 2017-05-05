@@ -74,6 +74,8 @@ typeError fun args = error
 -- * Linking
 --
 
+-- $ The linker translates Modular PCF into PCF.
+
 -- | At link time, a module is just its bare value bindings, that is a
 --   mapping from variables to the expressions they're bound to.
 type Module = Env Var Expr
