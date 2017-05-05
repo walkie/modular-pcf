@@ -1,6 +1,7 @@
 module Language.ModPCF.TypeResult where
 
 import Language.ModPCF.Syntax
+import Language.ModPCF.Signature
 
 
 --
@@ -23,13 +24,15 @@ data Context
    | InBind Bind
    | InMod  MExpr
    | InSig  SExpr
+   | InTop  Top
   deriving (Eq,Show)
 
 -- | What caused the error.
 data Cause
-   = Mismatch [(Expr,Type)]  -- ^ type mismatch
-   | NotFound                -- ^ unbound name
-   | Duplicate               -- ^ duplicate name declaration
+   = Mismatch [(Expr,Type)]           -- ^ type mismatch
+   | SigMismatch Signature Signature  -- ^ signature mismatch
+   | NotFound                         -- ^ unbound name
+   | Duplicate                        -- ^ duplicate name declaration
   deriving (Eq,Show)
 
 -- | Was typing successful?
@@ -60,6 +63,10 @@ isDuplicate _ = False
 -- | Throw a type mismatch error.
 mismatch :: Expr -> [(Expr,Type)] -> Result a
 mismatch loc parts = Left (TypeError (InExpr loc) (Mismatch parts))
+
+-- | Throw a signature mismatch error.
+sigMismatch :: Top -> Signature -> Signature -> Result a
+sigMismatch loc sig seal = Left (TypeError (InTop loc) (SigMismatch sig seal))
 
 -- | Throw an unbound name error.
 notFound :: Context -> Result a

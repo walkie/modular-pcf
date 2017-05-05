@@ -1,6 +1,7 @@
 module Language.ModPCF.TypeCheck where
 
 import Control.Monad (foldM)
+import Data.Maybe (isJust)
 
 import Language.ModPCF.Environment
 import Language.ModPCF.Signature
@@ -118,13 +119,44 @@ typeExpr ext _ this@(Ext m x)
 -- * Typing the module system
 --
 
--- ** Building and checking signatures
+-- ** Signature matching
 
--- | Signature matching. A signature sub matches a signature sup if every
---   type or value declaration in sup is matched by a corresponding type or
---   value declaration in sub.
-subSig :: Signature -> Signature -> Bool
-subSig _ _ = True
+-- | A unifier maps abstract type variables to types.
+type Unifier = TVar -> Type
+
+-- | Initial unifier.
+emptyUnifier :: Unifier
+emptyUnifier = TRef
+
+-- | Unify a variable with a concrete type.
+unify :: TVar -> Type -> Unifier -> Unifier
+unify x t u = \y -> if x == y then t else u y
+
+-- | Match two types. Returns a (potentially updated) unifier on success or
+--   'Nothing' on failure.
+matchType :: Unifier -> Type -> Type -> Maybe Unifier
+matchType u l r | l == r = Just u
+matchType u (TRef x) r = Just (unify x r u)
+matchType u l (TRef y) = Just (unify y l u)
+matchType u (a1 :-> r1) (a2 :-> r2) = do
+    u' <- matchType u a1 a2
+    matchType u' r1 r2
+matchType _ _ _ = Nothing
+
+-- | Signature matching. A sub-signature matches a super-signature if every
+--   type or value declaration in the super is matched by a corresponding
+--   type or value declaration in the sub.
+matchSig :: Signature -> Signature -> Bool
+matchSig sub sup =
+    case foldM checkType emptyUnifier (sigTypes sup) of
+      Just u  -> all (checkVal u) (sigVals sup)
+      Nothing -> False
+  where
+    checkType u (x,t) = sigGetType x sub >>= matchType u t
+    checkVal  u (x,t) = isJust (sigGetVal x sub >>= matchType u t)
+
+
+-- ** Building signatures
 
 -- | Load a declaration into a signature.
 loadDecl :: SigEnv -> Signature -> Decl -> Result Signature
@@ -180,11 +212,12 @@ typeTop :: SigEnv -> Top -> Result SigEnv
 typeTop ext (TMod m Nothing e) = do
     sig <- typeMExpr ext e
     return (extAddMod m sig ext)
-typeTop ext (TMod m (Just se) me) = do
+typeTop ext this@(TMod m (Just se) me) = do
     sig <- typeMExpr ext me
     seal <- typeSExpr ext se
-    -- check whether sig matches seal
-    return (extAddMod m seal ext)
+    if matchSig sig seal
+      then return (extAddMod m seal ext)
+      else sigMismatch this sig seal
 typeTop ext (TSig s e) = do
     sig <- typeSExpr ext e
     return (extAddSig s sig ext)
