@@ -7,4 +7,4 @@ a course on [Modularity at Oregon State University][CS589].
 [STLC]: https://en.wikipedia.org/wiki/Simply_typed_lambda_calculus
 [PCF]: https://en.wikipedia.org/wiki/Programming_Computable_Functions
 [Module]: https://jozefg.bitbucket.io/posts/2015-01-08-modules.html
-[CS589]: http://web.engr.oregonstate.edu/~walkiner/teaching/cs589-sp17/
+[CS589]: http://web.engr.oregonstate.edu/~walkiner/teaching/cs589-sp19/
